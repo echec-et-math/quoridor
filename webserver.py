@@ -13,6 +13,9 @@ app = Flask(__name__)
 
 main_database = "results/gamedb.txt"
 
+###########
+## Fonctions de lecture de fichiers 
+
 def fetch_database(id):
     # Find all games associated to this id
     with open(main_database, "r") as main_db:
@@ -34,6 +37,9 @@ def fetch_game(id):
     except FileNotFoundError:
         print("Game not found !")
         return None
+
+###########
+## Fonctions d'affichage
 
 def game_to_HTML(gameid, name1, name2, movelist, playerslot):
     if playerslot == 1:
@@ -57,7 +63,7 @@ def game_to_HTML(gameid, name1, name2, movelist, playerslot):
 def game_in_progress_HTML(gameid, name1, name2):
     return f"""<p>RESULTS FOR GAME {gameid}, {name1} vs {name2} : STARTING NOW</p>"""
 
-def build_HTML_scoresheet(id):
+def build_HTML_scoresheet(id):  # wrapper pour assembler toutes les parties d'un joueur
     res = """<!DOCTYPE html>
 <html>
 <style>
@@ -75,6 +81,9 @@ table, th, td {
             res += game_to_HTML(id, n1, n2, ml, ps)
     return res + """</body>
     </html>"""
+
+###########
+## Fonctions de l'API
 
 @app.get("/")
 def website_root():
