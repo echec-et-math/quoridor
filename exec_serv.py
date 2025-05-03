@@ -22,14 +22,14 @@ def writeto(queue, msg):
     queue.put(msg)
 
 def is_valid(gamestate, move):
-    return True # len(move) > 10
+    return fonctions_jeu.test_coup_licite(move, gamestate)
 
 def apply_move(gamestate, move):
-    return gamestate
+    return fonctions_jeu.maj_etat_jeu(move, gamestate)
 
 def log(filename, msg):
     with open("results/" + filename + ".txt", "a") as f_results:
-        f_results.write(msg + '\n')
+        f_results.write(str(msg) + '\n')
 
 # multi-move approach :
 # while not queue_in.is_empty():
@@ -51,7 +51,7 @@ def await_move_update_gamestate(gamestate, queue_in):
 
 def exec_server(name1, name2, game_id):
     #print("START SERVER")
-    try:
+    #try:
         f1 = importlib.import_module("submissions." + name1)
         f2 = importlib.import_module("submissions." + name2)
         j1_in, j1_out, j2_in, j2_out = queue.Queue(maxsize=10), queue.Queue(maxsize=10), queue.Queue(maxsize=10), queue.Queue(maxsize=10)
@@ -66,7 +66,7 @@ def exec_server(name1, name2, game_id):
         j2_out.put("2") # player number
         gamestate = fonctions_jeu.creation_partie(GAMEBOARD_DIMENSION)
         move = "INIT"
-        while not gamestate['ended']: # main game loop
+        while not gamestate['fini']: # main game loop
             # Update state to J1
             writeto(j1_out, move)
             errtype, move, gamestate = await_move_update_gamestate(gamestate, j1_in)
@@ -100,10 +100,10 @@ def exec_server(name1, name2, game_id):
             log(game_id, move)
         writeto(j1_out, "END")
         writeto(j2_out, "END")
-        log(game_id, f"win{gamestate['winner']}")
+        log(game_id, f"win{gamestate['gagnant']}")
         #print("END SERVER")
-    except Exception:
-        print("Error while running")
+    #except Exception:
+        #print("Error while running")
 
 if __name__ == "__main__":
     exec_server()
