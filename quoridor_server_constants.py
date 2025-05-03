@@ -8,6 +8,6 @@ RECHECK_SUBMISSIONS_DELAY = 60 # in seconds : time to wait to recheck the submis
 
 SUBEXEC_TIMEOUT = 300 # in seconds : time for a whole match thread to be considered as crashed
 
-DELAY_BETWEEN_GLOBAL_MATCHMAKING = 5 # in seconds : delay before restarting another global matchmaking session
+DELAY_BETWEEN_GLOBAL_MATCHMAKING = 3600 # in seconds : delay before restarting another global matchmaking session
 
 GAMEBOARD_DIMENSION = 9 # board size
