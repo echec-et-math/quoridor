@@ -3,6 +3,8 @@ import queue
 import time
 import importlib
 
+import fonctions_jeu
+
 from quoridor_server_constants import *
 
 def exec_submission(submission, infile, outfile):
@@ -18,12 +20,6 @@ def readfrom(queue):
 
 def writeto(queue, msg):
     queue.put(msg)
-
-def init_gamestate():
-    gs = dict()
-    gs['winner'] = 0
-    gs['ended'] = False
-    return gs # TODO not finished
 
 def is_valid(gamestate, move):
     return True # len(move) > 10
@@ -68,10 +64,9 @@ def exec_server(name1, name2, game_id):
         #print("Threads started")
         j1_out.put("1") # player number
         j2_out.put("2") # player number
-        gamestate = init_gamestate()
+        gamestate = fonctions_jeu.creation_partie(GAMEBOARD_DIMENSION)
         move = "INIT"
-        k = 0
-        while not gamestate['ended'] and k < 10: # main game loop
+        while not gamestate['ended']: # main game loop
             # Update state to J1
             writeto(j1_out, move)
             errtype, move, gamestate = await_move_update_gamestate(gamestate, j1_in)
@@ -103,7 +98,6 @@ def exec_server(name1, name2, game_id):
                 log(game_id, f"invalid2 : {move}")
                 return
             log(game_id, move)
-            k += 1
         writeto(j1_out, "END")
         writeto(j2_out, "END")
         log(game_id, f"win{gamestate['winner']}")
