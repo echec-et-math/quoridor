@@ -33,17 +33,24 @@ Variation par rapport à la règle officielle :
 from representation_quoridor import *
 from copy import deepcopy
 
+#%%
+def prochain_joueur(Game):
+    """ Entrée : état de jeu
+        Sortie : renvoie l'état du jeu où le joueur courant a changé """
+    p = Game['joueur_courant']
+    Game['joueur_courant'] = 3-p
+    return Game
 
 #%%    
- #####################
- ### Fonction de test de coup licite
- ######################   
+#####################
+### Fonction de test de coup licite
+######################   
 
-def test_deplacement_licite(coup, Game, joueur_courant):
+def test_deplacement_licite(coup, Game):
     """ Entrée : case où se déplace le joueur courant, sa position et celle de l'adversaire
         On suppose que coup est ici une case
         Sortie : booléen True si le coup est licite et False sinon """
-    
+    joueur_courant = Game['joueur_courant']
     grille = Game['grille']
     if joueur_courant == 1:
         pos_joueur, pos_adversaire = Game['pos1'], Game['pos2']
@@ -56,14 +63,14 @@ def test_deplacement_licite(coup, Game, joueur_courant):
     
     # second cas : les joueurs se cotoient
     else:
-        if coup in Game[pos_joueur]:
+        if pos_adversaire in grille[pos_joueur]:
             return (coup in grille[pos_adversaire] and coup != pos_joueur)
         # un coup est licite s'il est voisin de l'adversaire, sauf la case actuelle
         
 
 # Pour placer un mur, il faut vérifier que l'adversaire aura toujours un chemin 
 # pour arriver à une de ses cases objectif. On choisit de tester l'existence d'un chemin 
-# par une variante booléenne de Floyd-Warshall
+# par une variante booléenne de Floyd-Warshall -> seule utilisation de la matrice d'adjacence
 
 def sontConnectes(grille, n):
     """ Entrée : dictionnaire d'adjacence d'un graphe non orienté,
@@ -94,14 +101,15 @@ def test__mur_presents(coup, Game):
         return( (i,j+1) in grille[ (i,j) ] and (i+1,j+1) in grille[ (i+1,j) ])
 
     
-def objectif_accessible(case, coup, Game, joueur_courant):
-    """ Entrée : une case sous la forme (i,j), un coup de placement de mur, l'état du jeu, joueur_courant
+def objectif_accessible(case, coup, Game):
+    """ Entrée : une case sous la forme (i,j), un coup de placement de mur, l'état du jeu
         Sortie : booléen True si au moins une case objectif du joueur courant
             est atteignable après avoir retiré le mur """
     G = deepcopy(Game)
+    joueur_courant = G['joueur_courant']
     n = G['taille']
     assert test__mur_presents(coup, G), 'pose de mur illicite'
-    G = maj_placement_mur(coup, G, joueur_courant)
+    G = maj_placement_mur(coup, G)
     Tableau_bool = sontConnectes(G['grille'], n)
     if joueur_courant == 2:
         boole = False
@@ -118,7 +126,11 @@ def objectif_accessible(case, coup, Game, joueur_courant):
 def test_placement_mur_licite(coup, Game):
     """ Entrée : coup de placement de mur de la forme (i,j,'orientation') et la grille
         Sortie : booléen selon que le coup est licite ou pas """
-
+    joueur_courant = Game['joueur_courant']
+    if joueur_courant == 1: 
+        assert Game['nbmurs1']>0
+    elif joueur_courant == 2: 
+        assert Game['nbmurs2']>0
     grille = Game['grille']
     (i, j, orientation) = coup
     if orientation == 'v':
@@ -126,66 +138,42 @@ def test_placement_mur_licite(coup, Game):
     elif orientation == 'h':
         return( (i,j+1) in grille[ (i,j) ] and (i+1,j+1) in grille[ (i+1,j) ])
         
-def test_coup_licite(coup, Game, joueur_courant):
+def test_coup_licite(coup, Game):
     """ Entrée : clair
         Sortie : booléen """
-    assert(len(coup)>1 and len(coup)<4) # ajouter test de type -> devrait être 
-                                        # tuple (int, int, str)
-    #grille = Game['grille']
-    if len(coup) == 3:
-        i,j,orientation = coup
-        return test_placement_mur_licite(coup, Game)
-    elif len(coup) == 2:
-        return test_deplacement_licite(coup, Game, joueur_courant)
+    try:
+        assert(len(coup)>1 and len(coup)<4) # ajouter test de type -> devrait être 
+                                            # tuple (int, int, str)
+        #grille = Game['grille']
+        if len(coup) == 3:
+            i,j,orientation = coup
+            return test_placement_mur_licite(coup, Game)
+        elif len(coup) == 2:
+            return test_deplacement_licite(coup, Game)
+    except AssertionError:
+        return False
 
 #%%
 #####################
 ### Fonction de l'état de la partie - intégration des coups 
 ######################
 
-""" L'état du jeu est codé par un dictionnaire Game de clés 
-    - 'grille' qui contient le graphe du jeu sous forme lui-même de dictionnaire de liste d'adjacence 
-    - 'nbmurs1' et 'nbmurs2' qui correspondent aux nombres de murs à jouer
-    - 'pos1' et 'pos2' qui contiennent la case (i,j) du joueur 1 (resp2) avec 1<= i,j <=n 
-    - 'partie' qui contient la liste des coups joués et est une variable globale indépendante de Game """
-    
-def creation_partie(n):
-    """ Initialise les variables de jeu en créant un dictionnaire contenant l'état du jeu (Game) et 
-        la liste des coups dans le tableau Partie"""
-    Game = {}
-    Game['grille'] = Graphe(n)
-    Game['taille'] = n
-    Game['partie'] = []
-    Game['nbmurs1'] = 10
-    Game['nbmurs2'] = 10
-    Game['pos1'] = (1, (n+1)//2 )
-    Game['pos2'] = (n, (n+1)//2 )
-    #Game['joueur1'] = joueur1
-    #Game['joueur2'] = joueur2
-    Game['joueur_courant'] = 1
-    Game['gagnant'] = 0 # vaudra 1 ou 2 
-    Game['fini'] = False # True quand la partie est finie 
-    return Game 
-
 
 def maj_deplacement(coup, Game):
     """ Entrée : case où se déplace le joueur courant, sa position et celle de l'adversaire
         Sortie : Game mis à jour ; présuppose que le coup est licite """
-    #grille = Game['grille']
-    joueur_courant = Game['joueur_courant']
-    if joueur_courant == 1:
-        pos_joueur = Game['pos1']
+    if Game['joueur_courant'] == 1:
+        Game['pos1'] = coup
     else: 
-        pos_joueur = Game['pos2']
-
-    Game[pos_joueur] = coup
+        Game['pos2'] = coup
     Game['partie'].append(coup)
     return Game
 
-def maj_placement_mur(coup, Game,):
+def maj_placement_mur(coup, Game):
     """ Entrée : coup de placement de mur de la forme (i,j,'orientation') état de jeu
         Sortie : Game mis à jour
         Effet de bord : modifie le tableau partie des coups joués """
+    assert test_placement_mur_licite(coup, Game)
     grille = Game['grille']
     (i, j, orientation) = coup
     if orientation == 'v':
@@ -198,6 +186,11 @@ def maj_placement_mur(coup, Game,):
         grille[ (i,j+1) ].remove( (i,j) )
         grille[ (i+1,j) ].remove( (i+1,j+1) )
         grille[ (i+1,j+1) ].remove( (i+1,j) )
+    joueur_courant = Game['joueur_courant']
+    if joueur_courant == 1: 
+        Game['nbmurs1'] -= 1
+    elif joueur_courant == 2: 
+        Game['nbmurs2'] -= 1
     Game['grille'] = grille
     Game['partie'].append(coup)
     return Game
@@ -205,12 +198,16 @@ def maj_placement_mur(coup, Game,):
 def maj_etat_jeu(coup, Game):
     """ Entrée : coup, état du jeu
         Sortie : renvoie Game modifié  et modifie partie si le coup est licite"""
-    if test_coup_licite(coup, Game, joueur_courant):
-        if len(coup) == 3:
-            Game = maj_placement_mur(coup, Game, joueur_courant)
-        else:
-            Game = maj_deplacement(coup, Game, joueur_courant)
-        Game['joueur_courant'] = 1 if Game['joueur_courant'] == 2 else 1
+    assert test_coup_licite(coup, Game)
+    joueur_courant = Game['joueur_courant']
+    if len(coup) == 3:
+        Game = maj_placement_mur(coup, Game)
+    else:
+        Game = maj_deplacement(coup, Game)
+    if test_position_gagnante(Game):
+        Game['gagnant'] = joueur_courant
+        Game['fini'] = True
+    Game = prochain_joueur(Game)
     return Game
     
 #%%
@@ -221,11 +218,43 @@ def maj_etat_jeu(coup, Game):
 def test_position_gagnante(Game):
     """ Entrée : état du jeu (Game) 
         Sortie : True si le joueur courant est sur une position gagnante, False sinon"""
+    joueur_courant = Game['joueur_courant']
     n = Game['taille']
     if joueur_courant == 1:
         return Game['pos1'][1] == n
     elif joueur_courant == 2:
         return Game['pos2'][1] == 1
-
-
     
+
+#%%%  Test d'une partie simple complète
+Game = creation_partie(3)
+Game
+#%%
+Game = maj_etat_jeu((1,1,'h'), Game)
+Game
+#%%
+Game = maj_etat_jeu((2,2), Game)
+Game
+#%%
+Game = maj_etat_jeu((3,1), Game)
+Game
+#%%
+Game = maj_etat_jeu((2,2,'h'), Game)
+Game
+#%%
+Game = maj_etat_jeu((3,2), Game)
+Game
+#%%
+Game = maj_etat_jeu((3,1), Game)
+Game
+
+
+
+
+
+
+
+
+
+
+
