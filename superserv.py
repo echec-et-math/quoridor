@@ -15,7 +15,7 @@ def superserver():
     # pick a code for j1 and j2
     while True:
         threadlist = list()
-        available_codes = [f for f in os.listdir("submissions") if os.path.isfile("submissions/" + f)]
+        available_codes = [f for f in os.listdir("submissions") if os.path.isfile("submissions/" + f) and not f == ".gitignore"]
         while len(available_codes) < 2:
             time.sleep(RECHECK_SUBMISSIONS_DELAY) # recheck submissions
             available_codes = [f for f in os.listdir("submissions") if os.path.isfile(f)]
@@ -24,7 +24,7 @@ def superserver():
             # pick random file and remove extension
             if len(available_codes) < 2: # not enough submissions to continue
                 break
-            name1 = available_codes.pop()[:-3]
+            name1 = available_codes.pop()[:-3]  # remove ".py"
             name2 = available_codes.pop()[:-3]
             id = str(hex(rd.randint(1, 2**32)))
             threadlist.append(Thread(target=exec_serv.exec_server, args=[name1, name2, id])) # create game
