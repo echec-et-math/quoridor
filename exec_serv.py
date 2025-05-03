@@ -8,10 +8,10 @@ import fonctions_jeu
 from quoridor_server_constants import *
 
 def exec_submission(submission, infile, outfile):
-    #try:
-    submission.code(infile, outfile)
-    #except Exception:
-    #print("Error while running code : ", submission)
+    try:
+        submission.code(infile, outfile)
+    except Exception:
+        print("Error while running submission : ", submission)
     
 def readfrom(queue):
     if queue.empty():
@@ -51,7 +51,7 @@ def await_move_update_gamestate(gamestate, queue_in):
 
 def exec_server(name1, name2, game_id):
     #print("START SERVER")
-    #try:
+    try:
         f1 = importlib.import_module("submissions." + name1)
         f2 = importlib.import_module("submissions." + name2)
         j1_in, j1_out, j2_in, j2_out = queue.Queue(maxsize=10), queue.Queue(maxsize=10), queue.Queue(maxsize=10), queue.Queue(maxsize=10)
@@ -102,8 +102,8 @@ def exec_server(name1, name2, game_id):
         writeto(j2_out, "END")
         log(game_id, f"win{gamestate['gagnant']}")
         #print("END SERVER")
-    #except Exception:
-        #print("Error while running")
+    except Exception:
+        print("Error in the match thread.")
 
 if __name__ == "__main__":
     exec_server()
