@@ -1,3 +1,4 @@
+import itertools
 import requests
 import json
 import random as rd
@@ -7,29 +8,91 @@ from flask import Flask, request, jsonify, make_response
 headers =  {"Content-Type":"application/json"}
 
 app = Flask(__name__)
+# port is 5000
+# remember to create the submissions folder
 
-default_score_response2 = [
-    {'opponent' : 'test', 'victory' : True},
-    {'opponent' : 'test2', 'victory' : False}
-]
+main_database = "results/gamedb.txt"
+
+def fetch_database(id):
+    # Find all games associated to this id
+    with open(main_database, "r") as main_db:
+        gamelist = main_db.readlines()
+    res = []
+    for g in gamelist:
+        g = g[:-1] # remove trailing endline
+        j1, j2, gameid = tuple(g.split(" "))
+        if j1 == id: res.append((gameid, j1, j2, 1))
+        elif j2 == id: res.append((gameid, j1, j2, 2))
+    return res
+
+def fetch_game(id):
+    # Read game log associated to this id
+    try: # file might not exist if the game was just created : unlikely but possible
+        with open("results/" + str(id) + ".txt", "r") as gamefile:
+            movelist = gamefile.readlines()
+            return movelist
+    except FileNotFoundError:
+        print("Game not found !")
+        return None
+
+def game_to_HTML(gameid, name1, name2, movelist, playerslot):
+    if playerslot == 1:
+        titles = """<tr>
+        <th>YOU</th>
+        <th>OPPONENT</th>
+        </tr>"""
+    else:
+        titles = """<tr>
+        <th>OPPONENT</th>
+        <th>YOU</th>
+        </tr>"""
+    res = f"""<p>RESULTS FOR GAME {gameid}, {name1} vs {name2} :</p><table style="width:100%">{titles}"""
+    for k in range(len(movelist) // 2):
+        m, n = movelist[2*k], movelist[2*k + 1]
+        res += f"<tr><td>{m}</td><td>{n}</td></tr>"
+    if len(movelist) % 2 == 1:
+        res += f"<tr><td>{movelist[-1]}</td></tr>"
+    return res + "</table>" # TODO edit <p> header with color and game status
+
+def game_in_progress_HTML(gameid, name1, name2):
+    return f"""<p>RESULTS FOR GAME {gameid}, {name1} vs {name2} : STARTING NOW</p>"""
+
+def build_HTML_scoresheet(id):
+    res = """<!DOCTYPE html>
+<html>
+<style>
+table, th, td {
+  border:1px solid black;
+}
+</style>
+<body><h2>SCORES FOR PLAYER """ + str(id) + " :</h2>"
+    gamelist = fetch_database(id)
+    for id, n1, n2, ps in gamelist:
+        ml = fetch_game(id)
+        if ml == None:
+            res += game_in_progress_HTML(id, n1, n2)
+        else:
+            res += game_to_HTML(id, n1, n2, ml, ps)
+    return res + """</body>
+    </html>"""
 
 @app.get("/")
 def website_root():
-    resp = make_response("Welcome to the Quoridor web server ! Please register at /register, submit your code at /submitcode and check your scores at /score !")
+    resp = make_response("Welcome to the Quoridor web server ! Please register at /register, unregister at /unregister submit your code at /submitcode and check your scores at /score !")
     return resp, 200
 
 @app.get("/score")
 def get_score():
-    cookie = request.cookies.get("quoridor_user_id")
+    id = request.cookies.get("quoridor_user_id")
     # read ID from cookie jar
     # fetch scores from datasheet
     # build response in JSON
-    if cookie == None:
+    if id == None:
         resp = make_response("You are not registered to the server yet !")
         return resp, 401
     else:
         resp = make_response()
-        return jsonify(default_score_response2)
+        return build_HTML_scoresheet(id)
 
 @app.get("/submitcode")
 def submitcode_get():
@@ -50,7 +113,7 @@ def submitcode_post():
         resp = make_response("No file sent.")
         return resp, 400
     submission.save("submissions/" + cookie + ".py")
-    resp = make_response("Sucessfully saved your code.")
+    resp = make_response("Successfully saved your code.")
     return resp, 201
 
 

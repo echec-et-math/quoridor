@@ -1,15 +1,15 @@
-import os
 from threading import Thread
 import queue
 import time
+import importlib
 
-def exec_submission(module, infile, outfile):
-    print("begin")
-    try:
-        import safety_preexec # not sure whether it will work after the previous imports
-        module.code(infile, outfile)
-    except Exception:
-        print("Error while running code : ", module)
+from quoridor_server_constants import *
+
+def exec_submission(submission, infile, outfile):
+    #try:
+    submission.code(infile, outfile)
+    #except Exception:
+    #print("Error while running code : ", submission)
     
 def readfrom(queue):
     if queue.empty():
@@ -26,79 +26,88 @@ def init_gamestate():
     return gs # TODO not finished
 
 def is_valid(gamestate, move):
-    return len(move) > 10
+    return True # len(move) > 10
 
 def apply_move(gamestate, move):
     return gamestate
 
-def log(movelist, end_status):
-    return # TODO
+def log(filename, msg):
+    with open("results/" + filename + ".txt", "a") as f_results:
+        f_results.write(msg + '\n')
 
-def await_move_update_gamestate(gamestate, queue_in, queue_out):
+# multi-move approach :
+# while not queue_in.is_empty():
+#    move = queue_in.get()
+
+NOMOVE = 0
+INVALID = 1
+OK = 2
+
+def await_move_update_gamestate(gamestate, queue_in):
+    time.sleep(PLAYER_MOVE_TIMEOUT)
     move = readfrom(queue_in)
     if move == None:
-        return None, gamestate
+        return NOMOVE, None, gamestate
     if not is_valid(gamestate, move):
-        writeto(queue_out, "INVALID_MOVE")
-        return False, gamestate
-    print("Found valid move :", move)
+        return INVALID, move, gamestate
     gamestate = apply_move(gamestate, move)
-    return move, gamestate
+    return OK, move, gamestate
 
-def exec_server():
-    print("START SERVER")
-    import submission_base as f1
-    import submission_base2 as f2
+def exec_server(name1, name2, game_id):
+    #print("START SERVER")
     try:
+        f1 = importlib.import_module("submissions." + name1)
+        f2 = importlib.import_module("submissions." + name2)
         j1_in, j1_out, j2_in, j2_out = queue.Queue(maxsize=10), queue.Queue(maxsize=10), queue.Queue(maxsize=10), queue.Queue(maxsize=10)
-        print("Queues created")
+        #print("Queues created")
         t1 = Thread(target=exec_submission, args=[f1, j1_out, j1_in])
         t2 = Thread(target=exec_submission, args=[f2, j2_out, j2_in])
-        print("Threads created")
+        #print("Threads created")
         t1.start()
         t2.start()
-        print("Threads started")
+        #print("Threads started")
         j1_out.put("1") # player number
         j2_out.put("2") # player number
         gamestate = init_gamestate()
         move = "INIT"
-        movelist = []
-        while not gamestate['ended']: # main game loop
+        k = 0
+        while not gamestate['ended'] and k < 10: # main game loop
             # Update state to J1
             writeto(j1_out, move)
-            move, gamestate = await_move_update_gamestate(gamestate, j1_in, j1_out)
-            if move == None:
+            errtype, move, gamestate = await_move_update_gamestate(gamestate, j1_in)
+            if errtype == NOMOVE:
                 # no move from j1
                 writeto(j1_out, "END")
                 writeto(j2_out, "END")
-                log(movelist, "timeout1")
+                log(game_id, "timeout1")
                 return
-            elif move == False:
+            elif errtype == INVALID:
                 # invalid move from j1
                 writeto(j1_out, "END")
                 writeto(j2_out, "END")
-                log(movelist, "invalid1")
+                log(game_id, f"invalid1 : {move}")
                 return
-            movelist.append(move)
+            log(game_id, move)
             writeto(j2_out, move)
-            move, gamestate = await_move_update_gamestate(gamestate, j2_in, j2_out)
-            if move == None:
+            errtype, move, gamestate = await_move_update_gamestate(gamestate, j2_in)
+            if errtype == NOMOVE:
                 # no move from j2
                 writeto(j1_out, "END")
                 writeto(j2_out, "END")
-                log(movelist, "timeout2")
+                log(game_id, "timeout2")
                 return
-            elif move == False:
+            elif errtype == INVALID:
                 # invalid move from j2
                 writeto(j1_out, "END")
                 writeto(j2_out, "END")
-                log(movelist, "invalid2")
+                log(game_id, f"invalid2 : {move}")
                 return
-            movelist.append(move)
+            log(game_id, move)
+            k += 1
         writeto(j1_out, "END")
         writeto(j2_out, "END")
-        log(movelist, f"win{gamestate['winner']}")
-        print("END SERVER")
+        log(game_id, f"win{gamestate['winner']}")
+        #print("END SERVER")
     except Exception:
         print("Error while running")
 
